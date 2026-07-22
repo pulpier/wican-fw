@@ -1059,6 +1059,16 @@ int8_t elm327_process_cmd(uint8_t *buf, uint8_t len, twai_message_t *frame, Queu
 	static char cmd_response[128];
 	uint8_t cmd_found_flag = 0;
 
+	/* ABRP backport (see meatpiHQ/wican-fw discussion #615): the ABRP app
+	 * sends standard PID requests (01h 00h) as raw bytes without a carriage
+	 * return terminator. If the previous call left such a request pending,
+	 * append a CR so it gets processed. Regular ASCII ELM327 clients are not
+	 * affected: their commands start with printable characters (>= 0x20). */
+	if( cmd_len > 0 && cmd_buffer[0] <= 0x09 )
+	{
+		buf[len++] = '\r';
+	}
+
 	for(int i = 0; i < len; i++)
 	{
 		if(buf[i] == '\r' || cmd_len > 126)

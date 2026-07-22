@@ -82,3 +82,4 @@ tools/wican-log-viewer/*.pdb
 tools/wican-log-viewer/*.dll
 tools/wican-log-viewer/*.exe
 
+firmware-build/

@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - ble-wifi-coexist
+      - abrp-ble
 
 jobs:
   build:
