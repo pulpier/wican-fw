@@ -1,0 +1,37 @@
+name: Build Firmware
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ble-wifi-coexist
+
+jobs:
+  build:
+    name: Build wican-fw (WiCAN-OBD, esp32c3)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build with ESP-IDF
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5.2
+          target: esp32c3
+          path: '.'
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p out
+          cp build/*.bin out/ 2>/dev/null || true
+          cp build/bootloader/bootloader.bin out/
+          cp build/partition_table/partition-table.bin out/
+          cp build/ota_data_initial.bin out/ 2>/dev/null || true
+          ls -la out/
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: wican-fw-obd-ble-coexist
+          path: out/
