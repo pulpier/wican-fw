@@ -16,7 +16,8 @@ extern "C" {
 #define DEV_WIFI_CONNECTED_BIT  BIT2
 #define DEV_MQTT_CONNECTED_BIT  BIT3
 #define DEV_BLE_CONNECTED_BIT   BIT4
-#define DEV_SDCARD_MOUNTED_BIT  BIT5 
+#define DEV_SDCARD_MOUNTED_BIT  BIT5
+#define DEV_BLE_ENABLED_BIT     BIT8    /* backported from wican-pro for ble.c */
 
 // Initialize device status event group
 void dev_status_init(void);
