@@ -557,8 +557,10 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event,
             break;
         case ESP_GATTS_CONNECT_EVT:
             ESP_LOGI(GATTS_TABLE_TAG, "ESP_GATTS_CONNECT_EVT");
-        	config_server_stop();
-        	wifi_network_deinit();
+            // BLE/WiFi coexistence: keep WiFi and the config server running while
+            // a BLE client is connected. The ESP32-C3 supports SW coexistence
+            // (CONFIG_ESP_COEX_SW_COEXIST_ENABLE=y) and wifi_network_init()
+            // already selects WIFI_PS_MIN_MODEM when BLE is enabled.
 
     	    spp_conn_id = param->connect.conn_id;
     	    spp_gatts_if = gatts_if;

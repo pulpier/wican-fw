@@ -735,7 +735,7 @@
                             <strong style="color: #92400e; font-size: 14px;">BLE Connection Warning</strong>
                         </div>
                         <div style="color: #78350f; font-size: 13px; line-height: 1.4;">
-                            When BLE connects, WiFi AP is disabled. To restore WiFi AP: disconnect BLE and power cycle device.
+                            BLE/WiFi coexistence firmware: WiFi stays active while BLE is connected. Note: WiFi and BLE share one radio, expect reduced throughput while both are in use. If a client connects to the WiCAN AP, BLE is temporarily disabled.
                         </div>
                     </div>
                 </div>
@@ -2291,8 +2291,8 @@ function loadAutoTable(jsonData) {
 			document.getElementById("ssid_value").disabled = false;
 			document.getElementById("pass_value").disabled = false;
             document.getElementById("sta_security").disabled = false;
-			document.getElementById("ble_status").disabled = true;
-			document.getElementById("ble_status").selectedIndex = "1";
+			/* BLE/WiFi coexistence: BLE may also be enabled in AP+Station mode */
+			document.getElementById("ble_status").disabled = false;
 		}
 		if(document.getElementById("ble_status").selectedIndex == "0") {
 			document.getElementById("ble_warning_div").style.display = "block";
