@@ -365,6 +365,48 @@ static void can_rx_task(void *pvParameters)
 	}
 }
 
+/* How long a freshly flashed firmware gets to prove itself by bringing the
+ * station back online before the device reboots into the previous version. */
+#define OTA_VERIFY_TIMEOUT_MS       (5*60*1000)
+
+/* Confirms a pending firmware only after the station has actually connected.
+ * Marking it valid at the start of app_main() proves nothing: a build that
+ * boots fine but never rejoins the network is exactly the failure that leaves
+ * the device unreachable, and once marked valid it can no longer roll back. */
+static void ota_verify_task(void *pvParameters)
+{
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_ota_img_states_t ota_state;
+
+    if(esp_ota_get_state_partition(running, &ota_state) != ESP_OK
+            || ota_state != ESP_OTA_IMG_PENDING_VERIFY)
+    {
+        /* Not on trial - nothing to confirm. */
+        vTaskDelete(NULL);
+        return;
+    }
+
+    ESP_LOGW(TAG, "Firmware on trial, waiting up to %d s for the station",
+             OTA_VERIFY_TIMEOUT_MS/1000);
+
+    EventBits_t bits = dev_status_wait_for_bits(DEV_WIFI_CONNECTED_BIT,
+                                                pdMS_TO_TICKS(OTA_VERIFY_TIMEOUT_MS));
+
+    if(bits & DEV_WIFI_CONNECTED_BIT)
+    {
+        esp_err_t err = esp_ota_mark_app_valid_cancel_rollback();
+        ESP_LOGW(TAG, "Station connected, firmware confirmed (%s)", esp_err_to_name(err));
+    }
+    else
+    {
+        ESP_LOGE(TAG, "No station connection within %d s - rebooting to roll back",
+                 OTA_VERIFY_TIMEOUT_MS/1000);
+        esp_restart();
+    }
+
+    vTaskDelete(NULL);
+}
+
 void app_main(void)
 {
 	dev_status_init();
@@ -398,7 +440,8 @@ void app_main(void)
     xMsg_Tx_Queue = xQueueCreate(16, sizeof( xdev_buffer) );
     xmsg_ws_tx_queue = xQueueCreate(8, sizeof( xdev_buffer) );
 
-	esp_ota_mark_app_valid_cancel_rollback();
+	/* Firmware is confirmed by ota_verify_task once the station is actually
+	 * back on the network - not here, where nothing has been proven yet. */
 //    xmsg_obd_rx_queue = xQueueCreate(100, sizeof( twai_message_t) );
 
     ESP_ERROR_CHECK(esp_read_mac(derived_mac_addr, ESP_MAC_WIFI_SOFTAP));
@@ -584,6 +627,7 @@ void app_main(void)
         }
     }
 	wc_mdns_init((char*)uid, hardware_version, firmware_version);
+    xTaskCreate(ota_verify_task, "ota_verify_task", 1024*3, NULL, 4, NULL);
     xTaskCreate(can_rx_task, "can_rx_task", 1024*3, (void*)AF_INET, 5, NULL);
     xTaskCreate(can_tx_task, "can_tx_task", 1024*3, (void*)AF_INET, 5, NULL);
 
