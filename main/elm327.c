@@ -230,6 +230,18 @@ static char* elm327_can_flow_control(const char* command_str)
 	return 0;
 }
 
+static char* elm327_responses_on_off(const char* command_str)
+{
+	/* R1 asks for ECU responses to be printed, which this emulation always
+	 * does. R0 (send the request, print nothing but "OK") is not implemented
+	 * and keeps returning "?" instead of a hollow acknowledgement. */
+	if(command_str[1] == '1')
+	{
+		return (char*)ok_str;
+	}
+	return 0;
+}
+
 static char* elm327_header_on_off(const char* command_str)
 {
 	if(command_str[1] == '1')
@@ -1060,6 +1072,7 @@ const xelm327_cmd_t elm327_commands[] = {
 											{"sp", elm327_set_protocol},//set protocol to h and save as new default, 6, 7, 8, 9
 																	 // or ah	set protocol to auto, h
 											{"rv", elm327_input_voltage},//read input voltage
+											{"r", elm327_responses_on_off},// responses on (R1 only) - must stay after "rv"
 											{"pc", elm327_return_ok},//close protocol
 											{"st", elm327_set_timeout},//set timeout
 											{"d", elm327_restore_defaults_or_display_dlc},//set all to defaults or change display DLC
