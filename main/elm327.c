@@ -197,6 +197,24 @@ static char* elm327_set_echo(const char* command_str)
 	return (char*)ok_str;
 }
 
+static char* elm327_can_auto_format(const char* command_str)
+{
+	/* This emulation always formats CAN responses, which is exactly what CAF1
+	 * asks for - so acknowledge it instead of answering "?". Apps such as
+	 * IONIQ 5 Companion send ATCAF1 during setup and give up on an unknown
+	 * command.
+	 *
+	 * CAF0 (raw frames, no ISO-TP reassembly) is NOT implemented, so it keeps
+	 * returning "?" rather than a dishonest OK: a client that asked for raw
+	 * frames and silently receives formatted ones would misparse every
+	 * response. */
+	if(command_str[3] == '1')
+	{
+		return (char*)ok_str;
+	}
+	return 0;
+}
+
 static char* elm327_header_on_off(const char* command_str)
 {
 	if(command_str[1] == '1')
@@ -1017,6 +1035,7 @@ const xelm327_cmd_t elm327_commands[] = {
 											{"fcsh", elm327_set_fc_header},// set the flow control header
 											{"fcsm", elm327_set_fc_mode}, // determine if the fc_data and/or fc_header is uses
 											{"dpn", elm327_describe_protocol_num},//describe protocol by number
+											{"caf", elm327_can_auto_format},// CAN auto formatting (CAF1 only)
 											{"cra", elm327_set_receive_address},
 											{"cp", elm327_set_priority_bits},// set five most significant bits of 29bit header
 											{"dp", elm327_describe_protocol},//describe current protocol
