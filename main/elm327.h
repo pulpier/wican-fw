@@ -22,6 +22,12 @@
 #ifndef __ELM327__
 #define __ELM327__
 
+/* This header uses twai_message_t and QueueHandle_t but never pulled them in;
+ * that only worked as long as every includer happened to include them first. */
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "driver/twai.h"
+
 #define ELM327_CAN_RX   0x01
 #define ELM327_CAN_TX   0x02
 
