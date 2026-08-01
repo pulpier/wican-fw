@@ -57,7 +57,11 @@ static QueueHandle_t *can_rx_queue = NULL;
 const char *ok_str = "OK";
 const char *question_mark_str = "?";
 const char *device_description = "ELM327 v1.3a";
-const char *identify = "OBDLink MX";
+/* ATI used to answer "OBDLink MX". That identity belongs to the STN11xx chip
+ * family, so clients believed they were talking to one and sent its extended
+ * ST* commands - which this emulation does not implement. Report what we
+ * actually emulate instead. */
+const char *identify = "ELM327 v1.3a";
 
 
 void (*elm327_response)(char*, uint32_t, QueueHandle_t *q);
