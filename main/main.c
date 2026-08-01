@@ -526,6 +526,10 @@ void app_main(void)
     	int pass = config_server_ble_pass();
     	xmsg_ble_tx_queue = xQueueCreate(100, sizeof( xdev_buffer) );
     	ble_init(&xmsg_ble_tx_queue, &xMsg_Rx_Queue, CONNECTED_LED_GPIO_NUM, pass, &ble_uid[0]);
+    	/* The ported wican-pro ble.c only prepares state in ble_init(); the BT
+    	 * controller, bluedroid and advertising are started by ble_enable().
+    	 * The stock OBD ble.c did both in ble_init(), hence this extra call. */
+    	ble_enable();
     }
 
 

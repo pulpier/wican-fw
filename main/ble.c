@@ -1371,7 +1371,9 @@ void ble_init(QueueHandle_t *xTXp_Queue, QueueHandle_t *xRXp_Queue, uint8_t conn
 
     if(ble_cmdline_inbuf == NULL)
     {
-        ble_cmdline_inbuf = heap_caps_malloc(BLE_CMDLINE_MAX, MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);
+        /* ESP32-C3 has no PSRAM: MALLOC_CAP_SPIRAM (from the wican-pro/S3
+         * original) always returns NULL here. Allocate from internal RAM. */
+        ble_cmdline_inbuf = heap_caps_malloc(BLE_CMDLINE_MAX, MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT);
         if(ble_cmdline_inbuf == NULL)
         {
             ESP_LOGE(GATTS_TABLE_TAG, "Failed to allocate memory for BLE command line input buffer");
@@ -1503,7 +1505,8 @@ void ble_enable(void)
         static StackType_t *ble_task_stack;
         static StaticTask_t ble_task_buffer;
         
-        ble_task_stack = heap_caps_malloc(4096, MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);
+        /* ESP32-C3 has no PSRAM: see the note in ble_init(). */
+        ble_task_stack = heap_caps_malloc(4096, MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT);
         
         if (ble_task_stack == NULL)
         {

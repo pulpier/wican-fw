@@ -853,6 +853,10 @@ char *config_server_get_status_json(bool remove_sensitive_info)
 	cJSON_AddBoolToObject(root, "sta_connected", wifi_network_is_connected());
 	cJSON_AddStringToObject(root, "mdns", wc_mdns_get_hostname());
 	cJSON_AddStringToObject(root, "ble_status", device_config.ble_status);
+	/* Configured vs. actually running: ble_status is what the config asks for,
+	 * these two report what the BLE stack is really doing. */
+	cJSON_AddBoolToObject(root, "ble_enabled", dev_status_is_bit_set(DEV_BLE_ENABLED_BIT));
+	cJSON_AddBoolToObject(root, "ble_connected", dev_status_is_bit_set(DEV_BLE_CONNECTED_BIT));
 	cJSON_AddStringToObject(root, "can_datarate", can_datarate_str[can_get_bitrate()]);
 	cJSON_AddStringToObject(root, "can_mode", device_config.can_mode);
 	cJSON_AddStringToObject(root, "port_type", device_config.port_type);
