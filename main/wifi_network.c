@@ -43,7 +43,6 @@
  #define EXAMPLE_ESP_MAXIMUM_RETRY 	10
  
  static const char *WIFI_TAG = "wifi_network";
- static esp_netif_t* ap_netif;
  static esp_netif_t* sta_netif;
  static TaskHandle_t xwifi_handle = NULL;
  static int s_retry_num = 0;
@@ -268,8 +267,9 @@
      if(s_wifi_event_group == NULL)
      {
          s_wifi_event_group = xEventGroupCreate();
-         ap_netif = esp_netif_create_default_wifi_ap();
- 
+         /* EXPERIMENT: no SoftAP at all - station only. The vendor's own dual
+          * mode on the PRO is called "BLE+Station", never BLE+AP+Station, and
+          * with BLE running the station never associated while the AP was up. */
          sta_netif = esp_netif_create_default_wifi_sta();
      }
  
@@ -351,28 +351,21 @@
      };
      wifi_config_ap.ap.channel = channel;
  
-     if(config_server_get_wifi_mode() == APSTA_MODE || (sta_ssid != 0 && sta_pass != 0))
+     if(sta_ssid == 0 && sta_pass == 0)
      {
-         if(sta_ssid == 0 && sta_pass == 0)
-         {
-             strcpy( (char*)wifi_config_sta.sta.ssid, (char*)config_server_get_sta_ssid());
-             strcpy( (char*)wifi_config_sta.sta.password, (char*)config_server_get_sta_pass());
-         }
-         else
-         {
-             strcpy( (char*)wifi_config_sta.sta.ssid, (char*)sta_ssid);
-             strcpy( (char*)wifi_config_sta.sta.password, (char*)sta_pass);
-         }
-         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
-         ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_sta) );
-         if(xwifi_handle == NULL)
-         {
-             xTaskCreate(wifi_conn_task, "wifi_conn_task", 4096, (void*)AF_INET, 5, &xwifi_handle);
-         }
+         strcpy( (char*)wifi_config_sta.sta.ssid, (char*)config_server_get_sta_ssid());
+         strcpy( (char*)wifi_config_sta.sta.password, (char*)config_server_get_sta_pass());
      }
      else
      {
-         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+         strcpy( (char*)wifi_config_sta.sta.ssid, (char*)sta_ssid);
+         strcpy( (char*)wifi_config_sta.sta.password, (char*)sta_pass);
+     }
+     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_sta) );
+     if(xwifi_handle == NULL)
+     {
+         xTaskCreate(wifi_conn_task, "wifi_conn_task", 4096, (void*)AF_INET, 5, &xwifi_handle);
      }
  
  
@@ -394,21 +387,7 @@
          ESP_LOGE(WIFI_TAG, "Failed to set hostname: %s", esp_err_to_name(hostname_err));
      }
      
-     esp_netif_ip_info_t ipInfo;
-     #if HARDWARE_VER == WICAN_PRO
-     IP4_ADDR(&ipInfo.ip, 192,168,0,10);
-     IP4_ADDR(&ipInfo.gw, 192,168,0,10);
-     #else
-     IP4_ADDR(&ipInfo.ip, 192,168,80,1);
-     IP4_ADDR(&ipInfo.gw, 192,168,80,1);
-     #endif
-     IP4_ADDR(&ipInfo.netmask, 255,255,255,0);
-     esp_netif_dhcps_stop(ap_netif);
-     esp_netif_set_ip_info(ap_netif, &ipInfo);
-     esp_netif_dhcps_start(ap_netif);
- 
-     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config_ap));
-     ESP_ERROR_CHECK(esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20));
+     /* EXPERIMENT: SoftAP disabled - no AP netif, no DHCP server, no AP config. */
      ESP_ERROR_CHECK(esp_wifi_start());
      xEventGroupSetBits(s_wifi_event_group, WIFI_INIT_BIT);
      xEventGroupSetBits(s_wifi_event_group, WIFI_DISCONNECTED_BIT);
