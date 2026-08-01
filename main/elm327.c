@@ -242,6 +242,16 @@ static char* elm327_responses_on_off(const char* command_str)
 	return 0;
 }
 
+static char* elm327_automatic_receive(const char* command_str)
+{
+	/* AR: pick the receive address automatically again, i.e. undo a previous
+	 * ATCRA filter. That is this emulation's default state, so it is a real
+	 * implementation and not just an acknowledgement. */
+	elm327_config.rx_address_is_set = 0;
+	elm327_config.rx_address = 0;
+	return (char*)ok_str;
+}
+
 static char* elm327_header_on_off(const char* command_str)
 {
 	if(command_str[1] == '1')
@@ -1068,6 +1078,7 @@ const xelm327_cmd_t elm327_commands[] = {
 											{"cp", elm327_set_priority_bits},// set five most significant bits of 29bit header
 											{"dp", elm327_describe_protocol},//describe current protocol
 											{"sh", elm327_set_header},// set header to xyz, xx yy zz, or ww xx yy zz
+											{"ar", elm327_automatic_receive},// automatic receive address
 											{"at", elm327_return_ok},//adaptive timing control
 											{"sp", elm327_set_protocol},//set protocol to h and save as new default, 6, 7, 8, 9
 																	 // or ah	set protocol to auto, h
@@ -1254,8 +1265,38 @@ int8_t elm327_process_cmd(uint8_t *buf, uint8_t len, twai_message_t *frame, Queu
 				memset(cmd_response, 0, sizeof(cmd_response));
 				if(strlen(cmd_buffer) > 0)
 				{
-					elm327_request(cmd_buffer, cmd_response,q);
+					/* A request has to be hex. Anything else - notably the ST*
+					 * commands of the STN chips, which clients try because ATI
+					 * answers "OBDLink MX" - used to be pushed into the request
+					 * path and silently swallowed, leaving the client waiting for
+					 * an answer that never came. A real ELM327 replies "?" to
+					 * anything it cannot parse, so do that. */
+					uint8_t is_hex = 1;
+					for(uint8_t k = 0; cmd_buffer[k] != 0; k++)
+					{
+						if(!isxdigit((unsigned char)cmd_buffer[k]))
+						{
+							is_hex = 0;
+							break;
+						}
+					}
+
+					if(is_hex)
+					{
+						elm327_request(cmd_buffer, cmd_response,q);
+					}
+					else
+					{
+						strcat(cmd_response, (char*)question_mark_str);
+						strcat(cmd_response, elm327_config.linefeed ? "\r\n" : "\r");
+						elm327_trace_add("< ", cmd_response);
+						elm327_response((char*)cmd_response, 0, q);
+						memset(cmd_response, 0, sizeof(cmd_response));
+						strcat(cmd_response, "\r>");
+						elm327_response((char*)cmd_response, 0, q);
+					}
 				}
+			}
 			}
 
 			cmd_len = 0;
