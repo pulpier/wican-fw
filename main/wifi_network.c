@@ -244,7 +244,15 @@
          dev_status_wait_for_bits(DEV_AWAKE_BIT, portMAX_DELAY);            
          ESP_LOGI(WIFI_TAG, "Trying to connect...");
          xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECT_IDLE_BIT);
-         esp_wifi_connect();
+         esp_err_t conn_err = esp_wifi_connect();
+         if(conn_err != ESP_OK)
+         {
+             /* No WiFi event follows a failed esp_wifi_connect(), so without
+              * unblocking here this task would wait for WIFI_CONNECT_IDLE_BIT
+              * forever and the station would never retry. */
+             ESP_LOGW(WIFI_TAG, "esp_wifi_connect failed: %s", esp_err_to_name(conn_err));
+             xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECT_IDLE_BIT);
+         }
          xEventGroupWaitBits(s_wifi_event_group,
                      WIFI_CONNECT_IDLE_BIT,
                      pdFALSE,
