@@ -1297,7 +1297,6 @@ int8_t elm327_process_cmd(uint8_t *buf, uint8_t len, twai_message_t *frame, Queu
 					}
 				}
 			}
-			}
 
 			cmd_len = 0;
 			memset(cmd_response, 0, sizeof(cmd_response));
