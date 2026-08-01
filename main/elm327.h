@@ -33,4 +33,6 @@ void elm327_unlock(void);
 uint32_t elm327_get_identifier(void);
 uint32_t elm327_get_rx_address(void);
 uint8_t elm327_ready_to_receive(void);
+void elm327_trace_dump(char *out, size_t out_len);
+
 #endif

@@ -46,6 +46,7 @@
 #include "filesystem.h"
 #include "cJSON.h"
 #include "dev_status.h"
+#include "elm327.h"
 #include<stdio.h>
 #include <stdlib.h>
 #include "ver.h"
@@ -617,6 +618,15 @@ static esp_err_t load_config_handler(httpd_req_t *req)
     ESP_LOGI(TAG, "device_config_file: %s", device_config_file);
 	UBaseType_t stack_high_watermark = uxTaskGetStackHighWaterMark(NULL);
 	ESP_LOGI(TAG, "Task stack high watermark: %u words", stack_high_watermark);
+    return ESP_OK;
+}
+
+static esp_err_t elm327_trace_handler(httpd_req_t *req)
+{
+    static char trace_buf[4096];
+    elm327_trace_dump(trace_buf, sizeof(trace_buf));
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_send(req, trace_buf, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }
 
@@ -1507,6 +1517,12 @@ static const httpd_uri_t check_status_uri = {
      * context to demonstrate it's usage */
     .user_ctx  = NULL
 };
+static const httpd_uri_t elm327_trace_uri = {
+    .uri       = "/elm327_trace",
+    .method    = HTTP_GET,
+    .handler   = elm327_trace_handler,
+    .user_ctx  = NULL
+};
 static const httpd_uri_t load_config_uri = {
     .uri       = "/load_config",
     .method    = HTTP_GET,
@@ -2262,6 +2278,7 @@ static httpd_handle_t config_server_init(void)
         httpd_register_uri_handler(server, &store_config_uri);
         httpd_register_uri_handler(server, &check_status_uri);
         httpd_register_uri_handler(server, &load_config_uri);
+        httpd_register_uri_handler(server, &elm327_trace_uri);
         httpd_register_uri_handler(server, &logo_uri);
         httpd_register_uri_handler(server, &ws);
         httpd_register_uri_handler(server, &file_upload);

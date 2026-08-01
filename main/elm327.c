@@ -1097,6 +1097,49 @@ void elm327_unlock(void)
 	xSemaphoreGive(elm327_mutex);
 }
 
+/* Rolling trace of the last commands and their answers, readable over HTTP via
+ * /elm327_trace. Diagnosing a client that only reports "unknown command" or
+ * "no data" from the outside is guesswork - this shows what it actually sent
+ * and what it got back. */
+#define ELM327_TRACE_ENTRIES    48
+#define ELM327_TRACE_LEN        48
+static char elm327_trace_buf[ELM327_TRACE_ENTRIES][ELM327_TRACE_LEN];
+static uint8_t elm327_trace_head = 0;
+static uint8_t elm327_trace_count = 0;
+
+static void elm327_trace_add(const char *prefix, const char *text)
+{
+    char *dst = elm327_trace_buf[elm327_trace_head];
+    size_t plen = strlen(prefix);
+    size_t n = (plen < (ELM327_TRACE_LEN - 1)) ? plen : 0;
+    memcpy(dst, prefix, n);
+    for(size_t i = 0; text[i] != 0 && n < (ELM327_TRACE_LEN - 1); i++)
+    {
+        /* Keep it printable: responses carry CR/LF and ABRP sends raw PID
+         * bytes that are not ASCII at all. */
+        dst[n++] = (text[i] >= 0x20 && text[i] < 0x7F) ? text[i] : '.';
+    }
+    dst[n] = 0;
+    elm327_trace_head = (elm327_trace_head + 1) % ELM327_TRACE_ENTRIES;
+    if(elm327_trace_count < ELM327_TRACE_ENTRIES)
+    {
+        elm327_trace_count++;
+    }
+}
+
+void elm327_trace_dump(char *out, size_t out_len)
+{
+    size_t n = 0;
+    n += snprintf(out + n, out_len - n, "[");
+    uint8_t start = (elm327_trace_head + ELM327_TRACE_ENTRIES - elm327_trace_count) % ELM327_TRACE_ENTRIES;
+    for(uint8_t i = 0; i < elm327_trace_count && n < (out_len - 8); i++)
+    {
+        n += snprintf(out + n, out_len - n, "%s\"%s\"", i ? "," : "",
+                      elm327_trace_buf[(start + i) % ELM327_TRACE_ENTRIES]);
+    }
+    snprintf(out + n, out_len - n, "]");
+}
+
 int8_t elm327_process_cmd(uint8_t *buf, uint8_t len, twai_message_t *frame, QueueHandle_t *q)
 {
 	// Because the cmd_buffer and cmd_len are static they keep their value
@@ -1126,6 +1169,7 @@ int8_t elm327_process_cmd(uint8_t *buf, uint8_t len, twai_message_t *frame, Queu
 			cmd_response[0] = 0;
 			cmd_found_flag = 0;
 			memset(cmd_response, 0, sizeof(cmd_response));
+			elm327_trace_add("> ", cmd_buffer);
 
 			if(!strncmp(cmd_buffer, "at", 2))
 			{
@@ -1161,6 +1205,7 @@ int8_t elm327_process_cmd(uint8_t *buf, uint8_t len, twai_message_t *frame, Queu
 					strcat(cmd_response, "\r");
 				}
 
+				elm327_trace_add("< ", cmd_response);
 				elm327_response((char*)cmd_response, 0, q);
 				memset(cmd_response, 0, sizeof(cmd_response));
 				strcat(cmd_response, "\r>");
@@ -1197,6 +1242,7 @@ int8_t elm327_process_cmd(uint8_t *buf, uint8_t len, twai_message_t *frame, Queu
 				{
 					strcat(cmd_response, "\r");
 				}
+				elm327_trace_add("< ", cmd_response);
 				elm327_response((char*)cmd_response, 0, q);
 				memset(cmd_response, 0, sizeof(cmd_response));
 				strcat(cmd_response, "\r>");
