@@ -215,6 +215,21 @@ static char* elm327_can_auto_format(const char* command_str)
 	return 0;
 }
 
+static char* elm327_can_flow_control(const char* command_str)
+{
+	/* The emulation answers a first frame with a flow control frame all by
+	 * itself (see elm327_send_flow_control_frame), which is what CFC1 asks
+	 * for - so acknowledge it. CFC0 (client sends its own flow control) is
+	 * not implemented and keeps returning "?", for the same reason as CAF0:
+	 * pretending would break multi-frame reads in a way that looks like bad
+	 * data rather than a rejected command. */
+	if(command_str[3] == '1')
+	{
+		return (char*)ok_str;
+	}
+	return 0;
+}
+
 static char* elm327_header_on_off(const char* command_str)
 {
 	if(command_str[1] == '1')
@@ -1036,6 +1051,7 @@ const xelm327_cmd_t elm327_commands[] = {
 											{"fcsm", elm327_set_fc_mode}, // determine if the fc_data and/or fc_header is uses
 											{"dpn", elm327_describe_protocol_num},//describe protocol by number
 											{"caf", elm327_can_auto_format},// CAN auto formatting (CAF1 only)
+											{"cfc", elm327_can_flow_control},// CAN flow control (CFC1 only)
 											{"cra", elm327_set_receive_address},
 											{"cp", elm327_set_priority_bits},// set five most significant bits of 29bit header
 											{"dp", elm327_describe_protocol},//describe current protocol
