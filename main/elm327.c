@@ -72,6 +72,7 @@ typedef struct __xelm327_config
 {
 	uint32_t header;
 	uint32_t rx_address;
+	uint32_t rx_address_mask;
 	uint32_t req_timeout;
 	uint32_t fc_header;
 	uint8_t fc_data[5];
@@ -104,6 +105,7 @@ static void elm327_set_default_config(bool reset_protocol)
 	// Response address filter settings
 	elm327_config.rx_address_is_set = 0;
 	elm327_config.rx_address = 0;
+	elm327_config.rx_address_mask = 0xFFFFFFFF;
 
 	// See reset_all for why this is optional
 	if (reset_protocol)
@@ -253,6 +255,7 @@ static char* elm327_automatic_receive(const char* command_str)
 	 * implementation and not just an acknowledgement. */
 	elm327_config.rx_address_is_set = 0;
 	elm327_config.rx_address = 0;
+	elm327_config.rx_address_mask = 0xFFFFFFFF;
 	return (char*)ok_str;
 }
 
@@ -425,8 +428,38 @@ static char* elm327_set_receive_address(const char* command_str)
 	}
 	else if(arg_size == 3 || arg_size == 8)
 	{
+		/* An address may contain 'X' wildcards, e.g. ATCRA7XX means "accept
+		 * 700-7FF". Parsing that as plain hex turns the X into 0 and the
+		 * filter then matches 0x700 only - which silently drops every ECU
+		 * reply (they answer from 7E8..7EF, 7CE, ...). Build a value plus a
+		 * mask instead, with wildcard nibbles masked out. */
+		uint32_t value = 0;
+		uint32_t mask = 0;
+
+		for(size_t i = 0; i < arg_size; i++)
+		{
+			char c = command_str[3 + i];
+
+			value <<= 4;
+			mask <<= 4;
+
+			if(c == 'x' || c == 'X')
+			{
+				continue;
+			}
+
+			if(!isxdigit((unsigned char)c))
+			{
+				return 0;
+			}
+
+			value |= elm327_parse_hex_char(c);
+			mask |= 0xF;
+		}
+
 		elm327_config.rx_address_is_set = 1;
-		elm327_config.rx_address = elm327_parse_hex_str(command_str+3, arg_size);
+		elm327_config.rx_address = value;
+		elm327_config.rx_address_mask = mask;
 	}
 	else
 	{
@@ -695,7 +728,7 @@ static uint8_t elm327_should_receive(twai_message_t *rx_frame)
 	uint32_t identifier = rx_frame->identifier;
 	if(elm327_config.rx_address_is_set)
 	{
-		return identifier == elm327_config.rx_address;
+		return (identifier & elm327_config.rx_address_mask) == elm327_config.rx_address;
 	}
 	else
 	{
